@@ -43,23 +43,6 @@
 namespace mj=::mujoco;
 
 
-// ros variables
-//std::vector<float> motorValue;
-//std::vector<float> kp;
-//std::vector<float> kd;
-//std::vector<float> sensorValue;
-
-//int motor_num;
-//int robot_dof;
-//int sensor_num;
-//ros::Subscriber motorValueSub;
-//ros::Publisher sensorValuePub;
-//std::recursive_mutex motorvalue_mutex;
-//int map_joints[];
-//const int map_joints[]= {2, 3, 5, 6,7,9, 10, 11, 13,  14, 15, 17};
-//bool recive_action_flag ;
-//
-
 extern "C" {
     void controller(const mjModel* m, mjData* d);
 }
