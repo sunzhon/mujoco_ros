@@ -1,8 +1,6 @@
 #include "rosinterface.h"
 
-
 // variables init
-
 
 int motor_num=12;
 int sensor_num=48;
@@ -13,34 +11,37 @@ std::recursive_mutex motorvalue_mutex;
 bool recive_action_flag = false;
 
 
-std::vector<float> motorValue;
+std::vector<float> motorValue; // motor action
 std::vector<float> kp;
 std::vector<float> kd;
-std::vector<float> sensorValue;
-
-
+std::vector<float> sensorValue; 
+std::string sensorTopicName;
+std::string motorTopicName; 
 
 
 std::unique_ptr<ros::NodeHandle> RosInterface(int argc, char** argv){
+
     //1) ROS interface
     ros::init(argc, argv, "mujoco_sim");
 
-    //2) .create multi receive thread for topic,avoid receive data block
-    //3) .check if ros master node is ok
+    //2) check if ros master node is ok
     if(!ros::master::check()){
         ROS_ERROR("ros::master::check() did not pass!");
         ros::shutdown();
         std::exit(1);
     }
 
-    //4) instance rosNodeHandle
+    //3) instance ros NodeHandle
     std::unique_ptr<ros::NodeHandle> node = std::make_unique<ros::NodeHandle>();
 
-    //5) define variables
+    //4) define or initialize variables
     motorValue.resize(motor_num);
     kp.resize(motor_num);
     kd.resize(motor_num);
     sensorValue.resize(sensor_num);
+
+    sensorTopicName = "/ambot_v1/mujoco_states";
+    motorTopicName="/ambot_v1/actions";
 
 
     return node;
@@ -69,7 +70,7 @@ void pubSensorThread(ros::NodeHandle* node, mj::Simulate* sim){
     // pub states topics
     {
         const std::unique_lock<std::recursive_mutex> lock(sim->mtx);
-        sensorValuePub =node->advertise<ambot_msgs::RobotState>("/ambot_v1/states_mujoco", 1);
+        sensorValuePub =node->advertise<ambot_msgs::RobotState>(sensorTopicName, 1);
     }
     // waiting for model loaded
     while(!sim->m_) 
@@ -90,31 +91,6 @@ void pubSensorThread(ros::NodeHandle* node, mj::Simulate* sim){
                 msg.motor_num = motor_num;
 
                 // base linear velocity
-                /*
-                   msg.imu.linvel.x = sim->d_->qvel[0];
-                   msg.imu.linvel.y = sim->d_->qvel[1];
-                   msg.imu.linvel.z = sim->d_->qvel[2];
-
-                // angular velocity/ gyroscope
-                msg.imu.gyroscope.x = sim->d_->qvel[3];
-                msg.imu.gyroscope.y = sim->d_->qvel[4];
-                msg.imu.gyroscope.z = sim->d_->qvel[5];
-                printf("sim gyro:%f, %f, %f\n", sim->d_->qvel[3], sim->d_->qvel[4],  sim->d_->qvel[5]);
-                printf("imu gyro:%f, %f, %f\n", sim->d_->sensordata[0], sim->d_->sensordata[1], sim->d_->sensordata[2]);
-                printf("up imu gyro:%f, %f, %f\n", sim->d_->sensordata[3], sim->d_->sensordata[4], sim->d_->sensordata[5]);
-                printf("imu acce:%f, %f, %f\n", sim->d_->sensordata[6], sim->d_->sensordata[7], sim->d_->sensordata[8]);
-                printf("sim ori:%f, %f, %f %f\n", sim->d_->qpos[3], sim->d_->qpos[4], sim->d_->qpos[5], sim->d_->qpos[6]);
-                printf("imu ori:%f, %f, %f, %f\n", sim->d_->sensordata[6], sim->d_->sensordata[7], sim->d_->sensordata[8], sim->d_->sensordata[9]);
-
-                // orientation
-                msg.imu.quaternion.w = sim->d_->qpos[3];
-                msg.imu.quaternion.x = sim->d_->qpos[4];
-                msg.imu.quaternion.y = sim->d_->qpos[5];
-                msg.imu.quaternion.z = sim->d_->qpos[6];
-                */
-
-
-
                 msg.imu.linvel.x = sim->d_->qvel[0];
                 msg.imu.linvel.y = sim->d_->qvel[1];
                 msg.imu.linvel.z = sim->d_->qvel[2];
@@ -132,7 +108,6 @@ void pubSensorThread(ros::NodeHandle* node, mj::Simulate* sim){
                 msg.imu.quaternion.y = sim->d_->sensordata[8];
                 msg.imu.quaternion.z = sim->d_->sensordata[9];
 
-
                 // dof pos
                 for(uint8_t idx=0;idx<motor_num;idx++){
                     msg.motorState[idx].pos =sim->d_->qpos[idx+7];
@@ -146,7 +121,7 @@ void pubSensorThread(ros::NodeHandle* node, mj::Simulate* sim){
             // pub sensor values
             sensorValuePub.publish(msg);
             if(!ros::ok()){
-                ROS_ERROR("mujoco did not connect to ROS!");
+                ROS_ERROR("mujoco does not connect to ROS!");
                 ros::shutdown();
                 std::exit(1);
             }
@@ -160,7 +135,7 @@ void pubSensorThread(ros::NodeHandle* node, mj::Simulate* sim){
 void motorValueCallback(const ambot_msgs::RobotAction msg){
     assert(msg.motorAction.size()==motor_num);
     const std::unique_lock<std::recursive_mutex> lock(motorvalue_mutex);
-    for(uint8_t idx=0;idx<motor_num;idx++){
+    for(uint8_t idx=0; idx<motor_num; idx++){
         motorValue[idx] = msg.motorAction[idx].pos;
         kp[idx] = msg.motorAction[idx].kp;
         kd[idx] = msg.motorAction[idx].kd;
@@ -175,12 +150,12 @@ void subMotorThread(ros::NodeHandle *node, mj::Simulate* sim){
     //subsciber
     {
         const std::unique_lock<std::recursive_mutex> lock(sim->mtx);
-        motorValueSub = node->subscribe<ambot_msgs::RobotAction>("/ambot_v1/actions", 1, motorValueCallback);
+        motorValueSub = node->subscribe<ambot_msgs::RobotAction>(motorTopicName, 1, motorValueCallback);
     }
     while(!sim->exitrequest.load()) {
         sleep(1);
         if(!ros::ok()){
-            ROS_ERROR("mujoco did not connect to ROS!");
+            ROS_ERROR("mujoco does not connect to ROS!");
             ros::shutdown();
         }
     }
