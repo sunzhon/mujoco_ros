@@ -40,7 +40,7 @@ std::unique_ptr<ros::NodeHandle> RosInterface(int argc, char** argv){
     kd.resize(motor_num);
     sensorValue.resize(sensor_num);
 
-    sensorTopicName = "/ambot_v1/mujoco_states";
+    sensorTopicName = "/ambot_v1/states_mujoco";
     motorTopicName="/ambot_v1/actions";
 
 
