@@ -3,10 +3,8 @@
 
 // variables init
 
-const int map_joints[]={2, 3, 5, 6,7,9, 10, 11, 13,  14, 15, 17};
 
-int motor_num=24;
-int robot_dof=12;
+int motor_num=12;
 int sensor_num=48;
 
 ros::Subscriber motorValueSub;
@@ -52,14 +50,14 @@ std::unique_ptr<ros::NodeHandle> RosInterface(int argc, char** argv){
 void controller(const mjModel* m, mjData* d)
 {
 
-    if( m->nu==robot_dof){
+    if( m->nu==motor_num){
         const std::unique_lock<std::recursive_mutex> lock(motorvalue_mutex);
         if(recive_action_flag){
-            for(int idx=0;idx<robot_dof;idx++){
+            for(int idx=0;idx<motor_num;idx++){
                 //1) control method 1: set desired dof pos
                 //d->ctrl[idx] = motorValue[map_joints[idx]];
                 //2) control method 2: set desired dof torque calculated via PD control
-                d->ctrl[idx] = kp[map_joints[idx]]*(motorValue[map_joints[idx]] - d->qpos[idx+7]) - kd[map_joints[idx]] * d->qvel[idx+6];
+                d->ctrl[idx] = kp[idx]*(motorValue[idx] - d->qpos[idx+7]) - kd[idx] * d->qvel[idx+6];
                 //printf("idx:%i, desired value: %f, error: %f, force: %f\n", idx, motorValue[map_joints[idx]], (motorValue[map_joints[idx]] - d->qpos[idx+7]), d->ctrl[idx]);
             }
         }
@@ -136,12 +134,12 @@ void pubSensorThread(ros::NodeHandle* node, mj::Simulate* sim){
 
 
                 // dof pos
-                for(uint8_t idx=0;idx<robot_dof;idx++){
-                    msg.motorState[map_joints[idx]].pos =sim->d_->qpos[idx+7];
+                for(uint8_t idx=0;idx<motor_num;idx++){
+                    msg.motorState[idx].pos =sim->d_->qpos[idx+7];
                 }
                 // dof vel
-                for(uint8_t idx=0;idx<robot_dof;idx++){
-                    msg.motorState[map_joints[idx]].vel =sim->d_->qvel[idx+6];
+                for(uint8_t idx=0;idx<motor_num;idx++){
+                    msg.motorState[idx].vel =sim->d_->qvel[idx+6];
                 }
             }
 
