@@ -39,9 +39,14 @@ std::unique_ptr<ros::NodeHandle> RosInterface(int argc, char** argv){
     kp.resize(motor_num);
     kd.resize(motor_num);
     sensorValue.resize(sensor_num);
+    
+    for(int i=1; i<argc; i++)
+    {
+        printf("main arg %d: %s\n", i, argv[i]);
+    }
 
-    sensorTopicName = "/ambot_v1/states_mujoco";
-    motorTopicName="/ambot_v1/actions";
+    sensorTopicName = argv[2];
+    motorTopicName = argv[3];
 
 
     return node;
@@ -136,9 +141,9 @@ void motorValueCallback(const ambot_msgs::RobotAction msg){
     assert(msg.motorAction.size()==motor_num);
     const std::unique_lock<std::recursive_mutex> lock(motorvalue_mutex);
     for(uint8_t idx=0; idx<motor_num; idx++){
-        motorValue[idx] = msg.motorAction[idx].pos;
-        kp[idx] = msg.motorAction[idx].kp;
-        kd[idx] = msg.motorAction[idx].kd;
+        motorValue[idx] = msg.motorAction[idx].q;
+        kp[idx] = msg.motorAction[idx].Kp;
+        kd[idx] = msg.motorAction[idx].Kd;
     }
     recive_action_flag = true;
 }
