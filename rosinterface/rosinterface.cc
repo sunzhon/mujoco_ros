@@ -60,8 +60,8 @@ void controller(const mjModel* m, mjData* d)
         const std::unique_lock<std::recursive_mutex> lock(motorvalue_mutex);
         if(recive_action_flag){
             for(int idx=0;idx<motor_num;idx++){
-                //1) control method 1: set desired dof pos
-                //d->ctrl[idx] = motorValue[map_joints[idx]];
+                //1) control method 1: set desired dof pos, need to change xml model file 
+                //d->ctrl[idx] = motorValue[idx];
                 //2) control method 2: set desired dof torque calculated via PD control
                 d->ctrl[idx] = kp[idx]*(motorValue[idx] - d->qpos[idx+7]) - kd[idx] * d->qvel[idx+6];
                 //printf("idx:%i, desired value: %f, error: %f, force: %f\n", idx, motorValue[map_joints[idx]], (motorValue[map_joints[idx]] - d->qpos[idx+7]), d->ctrl[idx]);
